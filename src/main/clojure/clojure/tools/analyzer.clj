@@ -281,8 +281,9 @@
                              (recur (conj statements e) exprs)
                              [statements e]))
         statements (mapv (analyze-in-env statements-env) statements)
-        ret-env (when (= (:context env) :ctx/expr)
-                  (ctx env :ctx/return))
+        ret-env (if (= (:context env) :ctx/expr)
+                  (ctx env :ctx/return)
+                  env)
         ret (analyze-form ret ret-env)]
     {:op         :do
      :env        env

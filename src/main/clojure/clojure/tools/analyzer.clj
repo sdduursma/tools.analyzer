@@ -299,9 +299,14 @@
       (throw (ex-info (str "Wrong number of args to if, had: " (dec (count form)))
                       (merge {:form form}
                              (-source-info form env))))))
-  (let [test-expr (analyze-form test (ctx env :ctx/expr))
-        then-expr (analyze-form then env)
-        else-expr (analyze-form else env)]
+  (let [context (:context env)
+        test-expr (analyze-form test (ctx env :ctx/expr))
+        then-expr (analyze-form then (if (isa? context :ctx/expr)
+                                       (ctx env :ctx/expr)
+                                       env))
+        else-expr (analyze-form else (if (isa? context :ctx/expr)
+                                       (ctx env :ctx/expr)
+                                       env))]
     {:op       :if
      :form     form
      :env      env

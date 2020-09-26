@@ -172,13 +172,21 @@
     (is (= :host-call (-> hc-ast :op)))
     (is (= 'foo (-> hc-ast :method))))
 
+  (let [hc-ast (ast (.foo bar))]
+    (is (= :host-call (-> hc-ast :op)))
+    (is (= 'foo (-> hc-ast :method))))
+
+  (let [hc-ast (ast (. bar foo baz))]
+    (is (= :host-call (-> hc-ast :op)))
+    (is (= 'foo (-> hc-ast :method))))
+
+  (let [hc-ast (ast (. bar (foo baz)))]
+    (is (= :host-call (-> hc-ast :op)))
+    (is (= 'foo (-> hc-ast :method))))
+
   (let [hf-ast (ast (.-foo bar))]
     (is (= :host-field (-> hf-ast :op)))
     (is (= 'foo (-> hf-ast :field))))
-
-  (let [hi-ast (ast (.foo bar))]
-    (is (= :host-interop (-> hi-ast :op)))
-    (is (= 'foo (-> hi-ast :m-or-f))))
 
   (let [i-ast (ast (1 2))]
     (is (= :invoke (-> i-ast :op)))

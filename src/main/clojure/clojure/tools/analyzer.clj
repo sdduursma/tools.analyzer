@@ -743,44 +743,41 @@
              {:children children}))))
 
 (defn parse-dot
-  [[_ target & [m-or-f & args] :as form] env]
+  [[_ target & member-and-args :as form] env]
+  ;; TODO: Should we check the syntax better? To prevent for example (. foo (-bar baz)).
   (when-not (>= (count form) 3)
     (throw (ex-info (str "Wrong number of args to ., had: " (dec (count form)))
                     (merge {:form form}
                            (-source-info form env)))))
-  (let [[m-or-f field?] (if (and (symbol? m-or-f)
-                                 (= \- (first (name m-or-f))))
-                          [(-> m-or-f name (subs 1) symbol) true]
-                          [(if args (cons m-or-f args) m-or-f) false])
-        target-expr (analyze-form target (ctx env :ctx/expr))
-        call? (and (not field?) (seq? m-or-f))]
+  (let [;; member-and-args either contains members and args or
+        ;; the first element is a seq of members and args.
+        [member & args] (if (seq? (first member-and-args))
+                          (first member-and-args)
+                          member-and-args)
+        ;; Check if member is a field and remove the leading '-' if necessary.
+        [member field?] (if (and (symbol? member)
+                                 (= \- (first (name member))))
+                          [(-> member name (subs 1) symbol) true]
+                          [member false])
+        target-expr (analyze-form target (ctx env :ctx/expr))]
 
-    (when (and call? (not (symbol? (first m-or-f))))
-      (throw (ex-info (str "Method name must be a symbol, had: " (class (first m-or-f)))
+    (when (and (not field?) (not (symbol? member)))
+      (throw (ex-info (str "Method name must be a symbol, had: " (class member))
                       (merge {:form   form
-                              :method m-or-f}
+                              :method member}
                              (-source-info form env)))))
     (merge {:form   form
             :env    env
             :target target-expr}
-           (cond
-            call?
-            {:op       :host-call
-             :method   (symbol (name (first m-or-f)))
-             :args     (mapv (analyze-in-env (ctx env :ctx/expr)) (next m-or-f))
-             :children [:target :args]}
-
-            field?
-            {:op          :host-field
-             :assignable? true
-             :field       (symbol (name m-or-f))
-             :children    [:target]}
-
-            :else
-            {:op          :host-interop ;; either field access or no-args method call
-             :assignable? true
-             :m-or-f      (symbol (name m-or-f))
-             :children    [:target]}))))
+           (if field?
+             {:op          :host-field
+              :assignable? true
+              :field       (symbol (name member))
+              :children    [:target]}
+             {:op       :host-call
+              :method   (symbol (name member))
+              :args     (mapv (analyze-in-env (ctx env :ctx/expr)) args)
+              :children [:target :args]}))))
 
 (defn parse-invoke
   [[f & args :as form] env]

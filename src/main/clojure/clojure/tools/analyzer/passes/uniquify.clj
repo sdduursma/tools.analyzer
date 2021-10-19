@@ -19,7 +19,9 @@
 
 (defn uniquify [name]
   (swap! *locals-counter* #(update-in % [name] (fnil inc -1)))
-  (swap! *locals-frame* #(assoc-in % [name] (symbol (str name "__#" (@*locals-counter* name))))))
+  ;; The original infix used to be '__#', but '#' isn't allowed in Swift identifiers, so I've
+  ;; replaced it with 'U'.
+  (swap! *locals-frame* #(assoc-in % [name] (symbol (str name "__U" (@*locals-counter* name))))))
 
 (defmulti -uniquify-locals :op)
 

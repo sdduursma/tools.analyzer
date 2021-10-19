@@ -57,8 +57,8 @@
   (let [the-ast (with-env e1
                   (uniquify-locals (ast (let [x 1 y x x (let [x x] x)]
                                           (fn [y] x)))))]
-    (is (= 'x__#2 (-> the-ast :body :ret :ret :methods first :body :ret :name)))
-    (is (= 'y__#1 (-> the-ast :body :ret :ret :methods first :params first :name)))
+    (is (= 'x__U2 (-> the-ast :body :ret :ret :methods first :body :ret :name)))
+    (is (= 'y__U1 (-> the-ast :body :ret :ret :methods first :params first :name)))
     (is (apply not= (->> the-ast :bindings (mapv :name))))))
 
 (deftest emit-form-test
@@ -95,17 +95,17 @@
 
 (deftest emit-hygienic-form-test
   (with-env e1
-    (is (= '(let* [a__#0 1 a__#1 a__#0] a__#1)
+    (is (= '(let* [a__U0 1 a__U1 a__U0] a__U1)
            (emit-hygienic-form (uniquify-locals (ast (let [a 1 a a] a))))))
-    (is (= '(let* [x__#0 1] (fn* ([x__#1] x__#1)))
+    (is (= '(let* [x__U0 1] (fn* ([x__U1] x__U1)))
            (emit-hygienic-form (uniquify-locals (ast (let [x 1] (fn [x] x)))))))
-    (is (= '(fn* x__#0 ([x__#1] x__#1))
+    (is (= '(fn* x__U0 ([x__U1] x__U1))
            (emit-hygienic-form (uniquify-locals (ast (fn x [x] x))))))))
 
 (deftest deeply-nested-uniquify
-  (is (= '(fn* ([x__#0 y__#0 z__#0]
-                  (let* [foo__#0 (fn* ([y__#1 z__#1] [y__#1 z__#1]))]
-                        (foo__#0 x__#0 y__#0))))
+  (is (= '(fn* ([x__U0 y__U0 z__U0]
+                  (let* [foo__U0 (fn* ([y__U1 z__U1] [y__U1 z__U1]))]
+                        (foo__U0 x__U0 y__U0))))
          (with-env e1
           (emit-hygienic-form (uniquify-locals (ast (fn [x y z]
                                                       (let [foo (fn [y z]

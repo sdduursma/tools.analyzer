@@ -45,8 +45,8 @@
 
 (defmethod -emit-form :host-call
   [{:keys [target method args]} opts]
-  (list* '. (-emit-form* target opts)
-        method (mapv #(-emit-form* % opts) args)))
+  (list '. (-emit-form* target opts)
+        (list* method (mapv #(-emit-form* % opts) args))))
 
 (defmethod -emit-form :host-field
   [{:keys [target field]} opts]

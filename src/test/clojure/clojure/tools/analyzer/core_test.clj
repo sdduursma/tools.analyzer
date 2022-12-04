@@ -188,6 +188,13 @@
     (is (= :host-field (-> hf-ast :op)))
     (is (= 'foo (-> hf-ast :field))))
 
+  (let [ho-ast (ast (. bar == baz))]
+    (is (= :host-operator (-> ho-ast :op)))
+    (is (= 'bar (-> ho-ast :target :form)))
+    (is (= '== (-> ho-ast :operator)))
+    (is (= 1 (count (-> ho-ast :args))))
+    (is (= 'baz (-> ho-ast :args first :form))))
+
   (let [i-ast (ast (1 2))]
     (is (= :invoke (-> i-ast :op)))
     (is (= 1 (-> i-ast :fn :form)))

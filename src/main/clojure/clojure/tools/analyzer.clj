@@ -742,6 +742,63 @@
            (when-not (empty? children)
              {:children children}))))
 
+(defn- split-member-and-args [member-and-args]
+  ;; member-and-args either contains members and args or
+  ;; the first element is a seq of members and args.
+  (if (seq? (first member-and-args))
+    (first member-and-args)
+    member-and-args))
+
+(def ^:private swift-operators
+  #{"==="
+    "+"
+    "-"
+    "*"
+    "/"
+    "%"
+    "="
+    "+="
+    "-="
+    "*="
+    "/="
+    "%="
+    "=="
+    "!="
+    ">"
+    "<"
+    ">="
+    "<="
+    "&&"
+    "||"
+    "!"
+    "&"
+    "|"
+    "^"
+    "~"
+    "<<"
+    ">>"})
+
+(defn- member-op [member]
+  (cond
+    (and (symbol? member)
+         (= \- (first (name member))))
+    :host-field
+
+    (contains? swift-operators (name member))
+    :host-operator
+
+    :else
+    :host-call))
+
+(defn- field-symbol [member]
+  (-> member name (subs 1) symbol))
+
+(defn- normalize-member-name [member op]
+  ;; If member is a field, remove the leading '-'
+  (if (= op :host-field)
+    (-> member name (subs 1) symbol)
+    member))
+
 (defn parse-dot
   [[_ target & member-and-args :as form] env]
   ;; TODO: Should we check the syntax better? To prevent for example (. foo (-bar baz)).
@@ -749,35 +806,28 @@
     (throw (ex-info (str "Wrong number of args to ., had: " (dec (count form)))
                     (merge {:form form}
                            (-source-info form env)))))
-  (let [;; member-and-args either contains members and args or
-        ;; the first element is a seq of members and args.
-        [member & args] (if (seq? (first member-and-args))
-                          (first member-and-args)
-                          member-and-args)
-        ;; Check if member is a field and remove the leading '-' if necessary.
-        [member field?] (if (and (symbol? member)
-                                 (= \- (first (name member))))
-                          [(-> member name (subs 1) symbol) true]
-                          [member false])
+  (let [[member & args] (split-member-and-args member-and-args)
+        op (member-op member)
         target-expr (analyze-form target (ctx env :ctx/expr))]
-
-    (when (and (not field?) (not (symbol? member)))
+    (when (and (not (= op :host-field)) (not (symbol? member)))
       (throw (ex-info (str "Method name must be a symbol, had: " (class member))
                       (merge {:form   form
                               :method member}
                              (-source-info form env)))))
-    (merge {:form   form
+    (merge {:op     op
+            :form   form
             :env    env
             :target target-expr}
-           (if field?
-             {:op          :host-field
-              :assignable? true
-              :field       (symbol (name member))
-              :children    [:target]}
-             {:op       :host-call
-              :method   (symbol (name member))
-              :args     (mapv (analyze-in-env (ctx env :ctx/expr)) args)
-              :children [:target :args]}))))
+           (case op
+             :host-field {:assignable? true
+                          :field       (symbol (name (field-symbol member)))
+                          :children    [:target]}
+             :host-call {:method   (symbol (name member))
+                         :args     (mapv (analyze-in-env (ctx env :ctx/expr)) args)
+                         :children [:target :args]}
+             :host-operator {:operator   (symbol (name member))
+                             :args     (mapv (analyze-in-env (ctx env :ctx/expr)) args)
+                             :children [:target :args]}))))
 
 (defn parse-invoke
   [[f & args :as form] env]
